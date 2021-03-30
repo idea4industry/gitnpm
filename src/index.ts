@@ -1,3 +1,3 @@
-export function square(a: number): number {
-  return a * a
-}
+import { GitDependencyManager } from './GitDependencyManager'
+
+GitDependencyManager.dependencyFilter(`${process.cwd()}/package.json`)
