@@ -3,4 +3,3 @@ coverage
 jest_html_reporters.html
 .vscode
 tsconfig.tsbuildinfo
-dist
