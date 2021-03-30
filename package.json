@@ -4,7 +4,7 @@
   "description": "Wrapper for npm to manage git based package dependencies",
   "main": "dist/index.js",
   "bin": {
-    "gitnpm": "dist/GitDependencyManager.js"
+    "gitnpm": "dist/index.js"
   },
   "scripts": {
     "test": "jest",

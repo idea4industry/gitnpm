@@ -1,3 +1,8 @@
-import { GitDependencyManager } from './GitDependencyManager'
+#!/usr/bin/env node
 
-GitDependencyManager.dependencyFilter(`${process.cwd()}/package.json`)
+import { dependencyFilter } from './lib'
+
+// eslint-disable-next-line no-void
+void dependencyFilter(`${process.cwd()}/package.json`).then((res) => {
+  console.log(res)
+})
