@@ -1,103 +1,43 @@
-import Git from 'nodegit'
+/* eslint-disable no-await-in-loop */
 import fs from 'fs'
-import semver from 'semver'
 import { exec } from 'child_process'
 import _ from 'lodash'
-import { getGitToken } from './helpers.fn'
+import { manageCmdPackages, findMaxVersion } from './helpers.fn'
+import { gitPullOrClone, gitCheckout, getListOfTags } from './git.fn'
 
 async function manageGitDependency(gitDepend: Array<string>) {
-  const gitToken = await getGitToken(`${process.cwd()}/github_token.json`)
-  if (gitToken === null || gitToken === undefined) {
-    throw new Error('Add github_token file')
-  } else {
-    // Iterating git dependencies
-    // eslint-disable-next-line no-restricted-syntax
-    for (const val of gitDepend) {
-      const pathParts = val.split(':')
-      const repoDetail = pathParts[1].split('/')[1]
-      let repoName: string
-      let version: string = ''
-      if (repoDetail.includes('#')) {
-        repoName = repoDetail.split('#')[0]
-        version = repoDetail.split('#')[1]
-      } else {
-        repoName = repoDetail
-      }
-      // clone or pull git repo into node_modules
-      const localPath = `${process.cwd()}/node_modules/${repoName}`
-      await gitPullOrClone(localPath, pathParts[1])
+  // Iterating git dependencies
+  // eslint-disable-next-line no-restricted-syntax
+  for (const val of gitDepend) {
+    const pathParts = val.split(':')
+    const repoDetail = pathParts[1].split('/')[1]
+    let repoName: string
+    let version: string = ''
+    if (repoDetail.includes('#')) {
+      repoName = repoDetail.split('#')[0]
+      version = repoDetail.split('#')[1]
+    } else {
+      repoName = repoDetail
+    }
+    // clone or pull git repo into node_modules
+    const localPath = `${process.cwd()}/node_modules/${repoName}`
+    await gitPullOrClone(localPath, pathParts[1])
 
-      // List of tags
-      const tags = await Git.Repository.open(localPath).then(
-        async (repoResult) => {
-          const repo = repoResult
-          return Git.Tag.list(repo)
-        },
-      )
+    // List of tags
+    const tags = await getListOfTags(localPath)
 
-      // checkout latest version
-      if (tags.length > 0) {
-        let maxVer: string
-        if (version) {
-          if (version.startsWith('^')) {
-            version = version.slice(1)
-            const majorNum = semver.major(version)
-            maxVer = semver.maxSatisfying(tags, `${version} - ${majorNum}`)
-          } else if (version.startsWith('~')) {
-            version = version.slice(1)
-            const majorNum = semver.major(version)
-            const minorNum = semver.minor(version)
-            maxVer = semver.maxSatisfying(
-              tags,
-              `${version} - ${majorNum}.${minorNum}`,
-            )
-          } else {
-            maxVer = tags[tags.length - 1]
-          }
-        } else {
-          maxVer = tags[tags.length - 1]
-        }
-
+    // checkout latest version
+    if (tags.length > 0) {
+      const maxVer: string | null = await findMaxVersion(tags, version)
+      if (maxVer !== null) {
         await gitCheckout(maxVer, localPath)
       }
-      await dependencyFilter(`${localPath}/package.json`)
     }
+    await dependencyFilter(`${localPath}/package.json`)
   }
 }
 
-async function gitPullOrClone(localPath: string, repoPath: string) {
-  const gitToken = await getGitToken(`${process.cwd()}/github_token.json`)
-  if (fs.existsSync(localPath)) {
-    await Git.Repository.open(localPath).then(async (reporesult) => {
-      const repo = reporesult
-      await repo.fetch('origin').then(async () => {
-        return repo.mergeBranches('master', 'origin/master')
-      })
-    })
-  } else {
-    await Git.Clone.clone(
-      `https://${gitToken}:x-oauth-basic@github.com/${repoPath}.git`,
-      localPath,
-    )
-  }
-}
-
-async function gitCheckout(tag: string, localPath: string) {
-  await Git.Repository.open(localPath)
-    .then(async (repoResult) => {
-      const repo = repoResult
-      return Git.Reference.dwim(repo, `refs/tags/${tag}`).then(function (
-        commit,
-      ) {
-        return repo.checkoutRef(commit)
-      })
-    })
-    .catch((e) => {
-      throw e
-    })
-}
-
-export async function dependencyFilter(packagePath: string) {
+async function dependencyFilter(packagePath: string) {
   const packageRawData = fs.readFileSync(packagePath).toString()
   const packageJsonData = JSON.parse(packageRawData)
   const copyOfPackage = _.cloneDeep(packageJsonData)
@@ -123,8 +63,10 @@ export async function dependencyFilter(packagePath: string) {
     // Modifying package.json with new dependencies
     packageJsonData.dependencies = dependenciesModified
     fs.writeFileSync(packagePath, JSON.stringify(packageJsonData))
+    console.log('Installing dependencies...')
     // installing dependencies using npm
     exec(`npm install`, async (err, stdout, stderr) => {
+      console.log(stdout)
       // Put back original package.json
       fs.writeFileSync(packagePath, JSON.stringify(copyOfPackage, null, 2))
 
@@ -133,4 +75,12 @@ export async function dependencyFilter(packagePath: string) {
       }
     })
   }
+}
+
+export async function startProcess(packagePath: string) {
+  const args: string[] = process.argv
+  if (args.length > 3) {
+    await manageCmdPackages(args.slice(2)[0], args.slice(3).join(' '))
+  }
+  await dependencyFilter(packagePath)
 }

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
-import { dependencyFilter } from './lib'
+import { startProcess } from './lib'
 
 // eslint-disable-next-line no-void
-void dependencyFilter(`${process.cwd()}/package.json`).then((res) => {
-  console.log(res)
+void startProcess(`${process.cwd()}/package.json`).then((res) => {
+  // console.log(res)
 })

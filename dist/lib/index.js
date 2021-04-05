@@ -12,100 +12,43 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.dependencyFilter = void 0;
-const nodegit_1 = __importDefault(require("nodegit"));
+exports.startProcess = void 0;
+/* eslint-disable no-await-in-loop */
 const fs_1 = __importDefault(require("fs"));
-const semver_1 = __importDefault(require("semver"));
 const child_process_1 = require("child_process");
 const lodash_1 = __importDefault(require("lodash"));
-const gitTokenRaw = fs_1.default
-    .readFileSync(`${process.cwd()}/github_token.json`)
-    .toString();
-const gitToken = JSON.parse(gitTokenRaw);
+const helpers_fn_1 = require("./helpers.fn");
+const git_fn_1 = require("./git.fn");
 function manageGitDependency(gitDepend) {
     return __awaiter(this, void 0, void 0, function* () {
-        if (gitToken === null || gitToken === undefined) {
-            throw new Error('Add github_token file');
-        }
-        else {
-            // Iterating git dependencies
-            // eslint-disable-next-line no-restricted-syntax
-            for (const val of gitDepend) {
-                const pathParts = val.split(':');
-                const repoDetail = pathParts[1].split('/')[1];
-                let repoName;
-                let version = '';
-                if (repoDetail.includes('#')) {
-                    repoName = repoDetail.split('#')[0];
-                    version = repoDetail.split('#')[1];
-                }
-                else {
-                    repoName = repoDetail;
-                }
-                // clone or pull git repo into node_modules
-                const localPath = `${process.cwd()}/node_modules/${repoName}`;
-                yield gitPullOrClone(localPath, pathParts[1]);
-                // List of tags
-                const tags = yield nodegit_1.default.Repository.open(localPath).then((repoResult) => __awaiter(this, void 0, void 0, function* () {
-                    const repo = repoResult;
-                    return nodegit_1.default.Tag.list(repo);
-                }));
-                // checkout latest version
-                if (tags.length > 0) {
-                    let maxVer;
-                    if (version) {
-                        if (version.startsWith('^')) {
-                            version = version.slice(1);
-                            const majorNum = semver_1.default.major(version);
-                            maxVer = semver_1.default.maxSatisfying(tags, `${version} - ${majorNum}`);
-                        }
-                        else if (version.startsWith('~')) {
-                            version = version.slice(1);
-                            const majorNum = semver_1.default.major(version);
-                            const minorNum = semver_1.default.minor(version);
-                            maxVer = semver_1.default.maxSatisfying(tags, `${version} - ${majorNum}.${minorNum}`);
-                        }
-                        else {
-                            maxVer = tags[tags.length - 1];
-                        }
-                    }
-                    else {
-                        maxVer = tags[tags.length - 1];
-                    }
-                    yield gitCheckout(maxVer, localPath);
-                }
-                yield dependencyFilter(`${localPath}/package.json`);
+        // Iterating git dependencies
+        // eslint-disable-next-line no-restricted-syntax
+        for (const val of gitDepend) {
+            const pathParts = val.split(':');
+            const repoDetail = pathParts[1].split('/')[1];
+            let repoName;
+            let version = '';
+            if (repoDetail.includes('#')) {
+                repoName = repoDetail.split('#')[0];
+                version = repoDetail.split('#')[1];
             }
+            else {
+                repoName = repoDetail;
+            }
+            // clone or pull git repo into node_modules
+            const localPath = `${process.cwd()}/node_modules/${repoName}`;
+            yield git_fn_1.gitPullOrClone(localPath, pathParts[1]);
+            // List of tags
+            const tags = yield git_fn_1.getListOfTags(localPath);
+            // checkout latest version
+            if (tags.length > 0) {
+                const maxVer = yield helpers_fn_1.findMaxVersion(tags, version);
+                if (maxVer !== null) {
+                    yield git_fn_1.gitCheckout(maxVer, localPath);
+                }
+            }
+            yield dependencyFilter(`${localPath}/package.json`);
         }
-    });
-}
-function gitPullOrClone(localPath, repoPath) {
-    return __awaiter(this, void 0, void 0, function* () {
-        if (fs_1.default.existsSync(localPath)) {
-            yield nodegit_1.default.Repository.open(localPath).then((reporesult) => __awaiter(this, void 0, void 0, function* () {
-                const repo = reporesult;
-                yield repo.fetch('origin').then(() => __awaiter(this, void 0, void 0, function* () {
-                    return repo.mergeBranches('master', 'origin/master');
-                }));
-            }));
-        }
-        else {
-            yield nodegit_1.default.Clone.clone(`https://${gitToken.token}:x-oauth-basic@github.com/${repoPath}.git`, localPath);
-        }
-    });
-}
-function gitCheckout(tag, localPath) {
-    return __awaiter(this, void 0, void 0, function* () {
-        yield nodegit_1.default.Repository.open(localPath)
-            .then((repoResult) => __awaiter(this, void 0, void 0, function* () {
-            const repo = repoResult;
-            return nodegit_1.default.Reference.dwim(repo, `refs/tags/${tag}`).then(function (commit) {
-                return repo.checkoutRef(commit);
-            });
-        }))
-            .catch((e) => {
-            throw e;
-        });
     });
 }
 function dependencyFilter(packagePath) {
@@ -124,8 +67,10 @@ function dependencyFilter(packagePath) {
             // Modifying package.json with new dependencies
             packageJsonData.dependencies = dependenciesModified;
             fs_1.default.writeFileSync(packagePath, JSON.stringify(packageJsonData));
+            console.log('Installing dependencies...');
             // installing dependencies using npm
             child_process_1.exec(`npm install`, (err, stdout, stderr) => __awaiter(this, void 0, void 0, function* () {
+                console.log(stdout);
                 // Put back original package.json
                 fs_1.default.writeFileSync(packagePath, JSON.stringify(copyOfPackage, null, 2));
                 if (githubDepend.length > 0) {
@@ -135,5 +80,14 @@ function dependencyFilter(packagePath) {
         }
     });
 }
-exports.dependencyFilter = dependencyFilter;
+function startProcess(packagePath) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const args = process.argv;
+        if (args.length > 3) {
+            yield helpers_fn_1.manageCmdPackages(args.slice(2)[0], args.slice(3).join(' '));
+        }
+        yield dependencyFilter(packagePath);
+    });
+}
+exports.startProcess = startProcess;
 //# sourceMappingURL=index.js.map

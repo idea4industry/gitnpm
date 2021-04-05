@@ -1,7 +1,7 @@
 const pluralize = (word, count) => `${count} ${word}${count === 1 ? '' : 's'}`
 
 const chalk = require('chalk')
-const { stringify } = require('csv-string')
+//const { stringify } = require('csv-string')
 
 class JestSimpleDotReporter {
   pendingTests = []
