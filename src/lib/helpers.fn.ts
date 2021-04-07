@@ -24,47 +24,78 @@ export async function getGitToken(
   return json.token
 }
 
-export async function manageCmdPackages(command: string, args: string) {
-  exec(`npm ${command} ${args}`, (err, stdout, stderr) => {
-    console.log(stdout)
-    console.error(stderr)
+// eslint-disable-next-line require-await
+export async function manageCmdPackages(
+  command: string,
+  args: string,
+): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    exec(`npm ${command} ${args}`, (err, stdout, stderr) => {
+      console.log(stdout)
+      console.error(stderr)
+      resolve()
+    })
   })
 }
 
-async function findMajorVersion(
-  tags: string[],
-  version: string,
-): Promise<string | null> {
-  version = version.slice(1)
+function findMajorVersion(tags: string[], version: string): string | null {
   const majorNum = semver.major(version)
   return semver.maxSatisfying(tags, `${version} - ${majorNum}`)
 }
 
-async function findMinorVersion(
-  tags: string[],
-  version: string,
-): Promise<string | null> {
-  version = version.slice(1)
-  const majorNum = semver.major(version)
-  const minorNum = semver.minor(version)
-  return semver.maxSatisfying(tags, `${version} - ${majorNum}.${minorNum}`)
+function findMinorVersion(tags: string[], version: string): string | null {
+  const versionWithoutPrefix = version.slice(1)
+  const majorNum = semver.major(versionWithoutPrefix)
+  const minorNum = semver.minor(versionWithoutPrefix)
+  return semver.maxSatisfying(
+    tags,
+    `${versionWithoutPrefix} - ${majorNum}.${minorNum}`,
+  )
 }
 
-export async function findMaxVersion(
-  tags: string[],
-  version: string,
-): Promise<string | null> {
-  let maxVer: string | null
-  if (version) {
-    if (version.startsWith('^')) {
-      maxVer = await findMajorVersion(tags, version)
-    } else if (version.startsWith('~')) {
-      maxVer = await findMinorVersion(tags, version)
+// test: github:user/repo
+// test: github:user/repo#1.0.1
+// test: github:user/repo#^1.0.1
+// test: github:user/repo#~1.0.1
+
+type Prefix = '^' | '~' | ''
+
+type PrefixandVersion =
+  | [prefix: Prefix, version: string]
+  | [prefix: null, version: null]
+
+function splitPrefixandVersion(
+  versionWithPrefix: string | null,
+): PrefixandVersion {
+  if (versionWithPrefix) {
+    const prefixString = versionWithPrefix[0]
+    let prefix: Prefix
+    let version: string
+    if (prefixString === '^' || prefixString === '~') {
+      prefix = prefixString
+      version = versionWithPrefix.slice(1)
     } else {
-      maxVer = tags[tags.length - 1]
+      prefix = ''
+      version = versionWithPrefix
     }
-  } else {
-    maxVer = tags[tags.length - 1]
+    return [prefix, version]
   }
-  return maxVer
+  return [null, null]
+}
+
+export function findMaxVersion(
+  tags: string[],
+  versionWithPrefix: string | null,
+): string | null {
+  const prefixAndVersion = splitPrefixandVersion(versionWithPrefix)
+  switch (prefixAndVersion[0]) {
+    case '^':
+      return findMajorVersion(tags, prefixAndVersion[1])
+    case '~':
+      return findMinorVersion(tags, prefixAndVersion[1])
+    case '':
+      return prefixAndVersion[1]
+    default:
+      return tags[tags.length - 1]
+  }
 }
