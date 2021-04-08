@@ -45,12 +45,9 @@ export async function gitCheckout(tag: string, localPath: string) {
     })
 }
 
-export async function getListOfTags(localPath: string): Promise<string[]> {
-  const tags: string[] = await Git.Repository.open(localPath).then(
-    (repoResult) => {
-      const repo = repoResult
-      return Git.Tag.list(repo)
-    },
-  )
-  return tags
+export function getListOfTags(localPath: string): Promise<string[]> {
+  return Git.Repository.open(localPath).then((repoResult) => {
+    const repo = repoResult
+    return Git.Tag.list(repo)
+  })
 }

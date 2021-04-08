@@ -1,75 +1,68 @@
-/* eslint-disable prefer-destructuring */
-/* eslint-disable no-await-in-loop */
 import fs from 'fs'
 import { exec } from 'child_process'
-import _ from 'lodash'
+import _, { Dictionary, pickBy } from 'lodash'
+import { JsonValue } from 'type-fest'
 import { findMaxVersion } from './helpers.fn'
 import { gitPullOrClone, gitCheckout, getListOfTags } from './git.fn'
 
+type PackageJson = {
+  [index: string]: JsonValue | undefined
+  dependencies: Dictionary<string> | undefined
+  devDependencies: Dictionary<string> | undefined
+}
+
 export function dependencyFilter(packagePath: string) {
-  const packageRawData = fs.readFileSync(packagePath).toString()
-  const packageJsonData = JSON.parse(packageRawData)
-  const copyOfPackage = _.cloneDeep(packageJsonData)
-  const dependenciesData: { [key: string]: string } =
-    packageJsonData.dependencies
-  if (dependenciesData) {
+  const originalPackageFileData = fs.readFileSync(packagePath)
+  const packageJson: PackageJson = JSON.parse(
+    originalPackageFileData.toString(),
+  )
+  const { dependencies } = packageJson
+  if (dependencies) {
     // filtering out github dependencies
-    const githubDepend: Array<string> = Object.values(
-      dependenciesData,
-    ).filter((version) => version.includes('git'))
+    const githubDependencies = pickBy(dependencies, (value) =>
+      value.includes('git'),
+    )
 
-    // Taking only dependencies without git to modify package.json
-    const dependenciesModified = Object.entries(dependenciesData)
-      .filter(([packageName, version]) => !version.includes('git'))
-      .reduce(
-        (acc, [packageName, version]) => ({
-          ...acc,
-          [packageName]: version,
-        }),
-        {},
-      )
+    const normalDependencies = pickBy(
+      dependencies,
+      (value) => !value.includes('git'),
+    )
 
-    // Modifying package.json with new dependencies
-    packageJsonData.dependencies = dependenciesModified
-    fs.writeFileSync(packagePath, JSON.stringify(packageJsonData))
+    packageJson.dependencies = normalDependencies
+    fs.writeFileSync(packagePath, JSON.stringify(packageJson))
     console.log('Installing dependencies...')
     // installing dependencies using npm
     exec(`npm install`, async (err, stdout, stderr) => {
+      if (err) {
+        console.log(err)
+        process.exit(err.code)
+      }
       console.log(stdout)
+      console.error(stderr)
       // Put back original package.json
-      fs.writeFileSync(packagePath, JSON.stringify(copyOfPackage, null, 2))
+      fs.writeFileSync(packagePath, originalPackageFileData)
 
-      if (githubDepend.length > 0) {
-        await manageGitDependency(githubDepend)
+      if (Object.values(githubDependencies).length) {
+        await manageGitDependency(Object.values(githubDependencies))
       }
     })
   }
 }
 
-async function manageGitDependency(gitDepend: Array<string>) {
+async function manageGitDependency(gitDependencies: string[]) {
   // Iterating git dependencies
   // eslint-disable-next-line no-restricted-syntax
-  for (const val of gitDepend) {
-    const pathParts = val.split(':')
-    const repoDetail = pathParts[1].split('/')[1]
-    let repoName: string
-    let version: string = ''
-    if (repoDetail.includes('#')) {
-      repoName = repoDetail.split('#')[0]
-      version = repoDetail.split('#')[1]
-    } else {
-      repoName = repoDetail
-    }
-    // clone or pull git repo into node_modules
+  for (const gitDependency of gitDependencies) {
+    const gitDependencyWithoutPrefix = gitDependency.replace('github:', '')
+    const [, repoDetail] = gitDependencyWithoutPrefix.split('/')
+    const [repoName, version] = repoDetail.split('#')
     const localPath = `${process.cwd()}/node_modules/${repoName}`
-    await gitPullOrClone(localPath, pathParts[1])
-
-    // List of tags
+    await gitPullOrClone(localPath, gitDependencyWithoutPrefix)
     const tags = await getListOfTags(localPath)
 
     // checkout latest version
     if (tags.length > 0) {
-      const maxVer: string | null = findMaxVersion(tags, version)
+      const maxVer: string | null = findMaxVersion(tags, version ?? null)
       if (maxVer !== null) {
         await gitCheckout(maxVer, localPath)
       }

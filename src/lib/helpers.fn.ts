@@ -67,6 +67,7 @@ export function findMaxVersion(
       return findMinorVersion(tags, prefixAndVersion[1])
     case '':
       return prefixAndVersion[1]
+    case undefined:
     default:
       return tags[tags.length - 1]
   }
