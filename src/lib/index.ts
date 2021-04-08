@@ -1,43 +1,12 @@
+/* eslint-disable prefer-destructuring */
 /* eslint-disable no-await-in-loop */
 import fs from 'fs'
 import { exec } from 'child_process'
 import _ from 'lodash'
-import { manageCmdPackages, findMaxVersion } from './helpers.fn'
+import { findMaxVersion } from './helpers.fn'
 import { gitPullOrClone, gitCheckout, getListOfTags } from './git.fn'
 
-async function manageGitDependency(gitDepend: Array<string>) {
-  // Iterating git dependencies
-  // eslint-disable-next-line no-restricted-syntax
-  for (const val of gitDepend) {
-    const pathParts = val.split(':')
-    const repoDetail = pathParts[1].split('/')[1]
-    let repoName: string
-    let version: string = ''
-    if (repoDetail.includes('#')) {
-      repoName = repoDetail.split('#')[0]
-      version = repoDetail.split('#')[1]
-    } else {
-      repoName = repoDetail
-    }
-    // clone or pull git repo into node_modules
-    const localPath = `${process.cwd()}/node_modules/${repoName}`
-    await gitPullOrClone(localPath, pathParts[1])
-
-    // List of tags
-    const tags = await getListOfTags(localPath)
-
-    // checkout latest version
-    if (tags.length > 0) {
-      const maxVer: string | null = await findMaxVersion(tags, version)
-      if (maxVer !== null) {
-        await gitCheckout(maxVer, localPath)
-      }
-    }
-    await dependencyFilter(`${localPath}/package.json`)
-  }
-}
-
-async function dependencyFilter(packagePath: string) {
+export function dependencyFilter(packagePath: string) {
   const packageRawData = fs.readFileSync(packagePath).toString()
   const packageJsonData = JSON.parse(packageRawData)
   const copyOfPackage = _.cloneDeep(packageJsonData)
@@ -77,10 +46,34 @@ async function dependencyFilter(packagePath: string) {
   }
 }
 
-export async function startProcess(packagePath: string) {
-  const args: string[] = process.argv
-  if (args.length > 3) {
-    await manageCmdPackages(args.slice(2)[0], args.slice(3).join(' '))
+async function manageGitDependency(gitDepend: Array<string>) {
+  // Iterating git dependencies
+  // eslint-disable-next-line no-restricted-syntax
+  for (const val of gitDepend) {
+    const pathParts = val.split(':')
+    const repoDetail = pathParts[1].split('/')[1]
+    let repoName: string
+    let version: string = ''
+    if (repoDetail.includes('#')) {
+      repoName = repoDetail.split('#')[0]
+      version = repoDetail.split('#')[1]
+    } else {
+      repoName = repoDetail
+    }
+    // clone or pull git repo into node_modules
+    const localPath = `${process.cwd()}/node_modules/${repoName}`
+    await gitPullOrClone(localPath, pathParts[1])
+
+    // List of tags
+    const tags = await getListOfTags(localPath)
+
+    // checkout latest version
+    if (tags.length > 0) {
+      const maxVer: string | null = findMaxVersion(tags, version)
+      if (maxVer !== null) {
+        await gitCheckout(maxVer, localPath)
+      }
+    }
+    dependencyFilter(`${localPath}/package.json`)
   }
-  await dependencyFilter(packagePath)
 }

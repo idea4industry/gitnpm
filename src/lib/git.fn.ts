@@ -2,24 +2,33 @@ import Git from 'nodegit'
 import fs from 'fs'
 import { getGitToken } from './helpers.fn'
 
-export async function gitPullOrClone(localPath: string, repoPath: string) {
+async function gitPull(localPath: string) {
+  await Git.Repository.open(localPath)
+    .then(async (reporesult) => {
+      const repo = reporesult
+      await repo.fetch('origin').then(async () => {
+        return repo.mergeBranches('master', 'origin/master')
+      })
+    })
+    .catch((e) => {
+      // eslint-disable-next-line no-console
+      console.error(e)
+    })
+}
+
+async function gitClone(localPath: string, repoPath: string) {
   const gitToken = await getGitToken(`${process.cwd()}/github_token.json`)
+  await Git.Clone.clone(
+    `https://${gitToken}:x-oauth-basic@github.com/${repoPath}.git`,
+    localPath,
+  )
+}
+
+export async function gitPullOrClone(localPath: string, repoPath: string) {
   if (fs.existsSync(localPath)) {
-    await Git.Repository.open(localPath)
-      .then(async (reporesult) => {
-        const repo = reporesult
-        await repo.fetch('origin').then(async () => {
-          return repo.mergeBranches('master', 'origin/master')
-        })
-      })
-      .catch((e) => {
-        console.error(e)
-      })
+    await gitPull(localPath)
   } else {
-    await Git.Clone.clone(
-      `https://${gitToken}:x-oauth-basic@github.com/${repoPath}.git`,
-      localPath,
-    )
+    await gitClone(localPath, repoPath)
   }
 }
 
@@ -27,20 +36,18 @@ export async function gitCheckout(tag: string, localPath: string) {
   await Git.Repository.open(localPath)
     .then(async (repoResult) => {
       const repo = repoResult
-      return Git.Reference.dwim(repo, `refs/tags/${tag}`).then(function (
-        commit,
-      ) {
-        return repo.checkoutRef(commit)
-      })
+      const commit = await Git.Reference.dwim(repo, `refs/tags/${tag}`)
+      return repo.checkoutRef(commit)
     })
     .catch((e) => {
-      throw e
+      // eslint-disable-next-line no-console
+      console.error(e)
     })
 }
 
 export async function getListOfTags(localPath: string): Promise<string[]> {
   const tags: string[] = await Git.Repository.open(localPath).then(
-    async (repoResult) => {
+    (repoResult) => {
       const repo = repoResult
       return Git.Tag.list(repo)
     },

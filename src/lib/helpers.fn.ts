@@ -1,5 +1,4 @@
 import fs from 'fs'
-import { exec } from 'child_process'
 import semver from 'semver'
 
 type TokenFileData = {
@@ -17,25 +16,7 @@ export async function getGitToken(
   if (json.token.length === 0) {
     throw new Error('Token is not given in the file')
   }
-  // const tokenRegex = new RegExp('^([0-9a-fA-F]{40})$')
-  // if (!tokenRegex.test(json.token)) {
-  //   throw new Error('Given token is not a valid one')
-  // }
   return json.token
-}
-
-// eslint-disable-next-line require-await
-export async function manageCmdPackages(
-  command: string,
-  args: string,
-): Promise<void> {
-  return new Promise<void>((resolve, reject) => {
-    exec(`npm ${command} ${args}`, (err, stdout, stderr) => {
-      console.log(stdout)
-      console.error(stderr)
-      resolve()
-    })
-  })
 }
 
 function findMajorVersion(tags: string[], version: string): string | null {
@@ -44,19 +25,10 @@ function findMajorVersion(tags: string[], version: string): string | null {
 }
 
 function findMinorVersion(tags: string[], version: string): string | null {
-  const versionWithoutPrefix = version.slice(1)
-  const majorNum = semver.major(versionWithoutPrefix)
-  const minorNum = semver.minor(versionWithoutPrefix)
-  return semver.maxSatisfying(
-    tags,
-    `${versionWithoutPrefix} - ${majorNum}.${minorNum}`,
-  )
+  const majorNum = semver.major(version)
+  const minorNum = semver.minor(version)
+  return semver.maxSatisfying(tags, `${version} - ${majorNum}.${minorNum}`)
 }
-
-// test: github:user/repo
-// test: github:user/repo#1.0.1
-// test: github:user/repo#^1.0.1
-// test: github:user/repo#~1.0.1
 
 type Prefix = '^' | '~' | ''
 
