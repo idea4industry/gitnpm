@@ -1,1 +1,1 @@
-export declare function dependencyFilter(packagePath: string): void;
+export declare function dependencyFilter(packagePath: string): Promise<void>;

@@ -12,8 +12,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.findMaxVersion = exports.getGitToken = void 0;
+exports.readPackageJson = exports.groupDependencies = exports.findMaxVersion = exports.getGitToken = void 0;
 const fs_1 = __importDefault(require("fs"));
+const lodash_1 = require("lodash");
 const semver_1 = __importDefault(require("semver"));
 function getGitToken(gitHubTokenFilePath) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -64,9 +65,25 @@ function findMaxVersion(tags, versionWithPrefix) {
             return findMinorVersion(tags, prefixAndVersion[1]);
         case '':
             return prefixAndVersion[1];
+        case undefined:
         default:
             return tags[tags.length - 1];
     }
 }
 exports.findMaxVersion = findMaxVersion;
+function groupDependencies(packageJson) {
+    const { dependencies } = packageJson;
+    if (dependencies) {
+        const githubDependencies = lodash_1.pickBy(dependencies, (value) => value.includes('git'));
+        const normalDependencies = lodash_1.pickBy(dependencies, (value) => !value.includes('git'));
+        return [githubDependencies, normalDependencies];
+    }
+    return [{}, {}];
+}
+exports.groupDependencies = groupDependencies;
+function readPackageJson(packagePath) {
+    const packageJsonBuffer = fs_1.default.readFileSync(packagePath);
+    return [JSON.parse(packageJsonBuffer.toString()), packageJsonBuffer];
+}
+exports.readPackageJson = readPackageJson;
 //# sourceMappingURL=helpers.fn.js.map

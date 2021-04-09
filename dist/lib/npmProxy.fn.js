@@ -12,27 +12,22 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.dependencyFilter = void 0;
+exports.npmProxy = void 0;
 const fs_1 = __importDefault(require("fs"));
-const manageGitDependency_fn_1 = require("./manageGitDependency.fn");
-const helpers_fn_1 = require("./helpers.fn");
-const npmProxy_fn_1 = require("./npmProxy.fn");
-function dependencyFilter(packagePath) {
+const child_process_1 = require("child_process");
+function npmProxy(npmDependenciesObject, packageJsonObject, packagePath) {
     return __awaiter(this, void 0, void 0, function* () {
-        const [packageJsonObject, packageJsonBuffer] = helpers_fn_1.readPackageJson(packagePath);
-        const [githubDependenciesObject, npmDependenciesObject] = helpers_fn_1.groupDependencies(packageJsonObject);
-        console.log('Installing dependencies...');
-        try {
-            yield npmProxy_fn_1.npmProxy(npmDependenciesObject, packageJsonObject, packagePath);
-            yield manageGitDependency_fn_1.manageGitDependency(githubDependenciesObject);
-        }
-        catch (error) {
-            console.log(error);
-        }
-        finally {
-            fs_1.default.writeFileSync(packagePath, packageJsonBuffer);
+        if (Object.values(npmDependenciesObject).length) {
+            fs_1.default.writeFileSync(packagePath, JSON.stringify(Object.assign(Object.assign({}, packageJsonObject), { dependencies: npmDependenciesObject }), null, 2));
+            yield new Promise((resolve, reject) => {
+                child_process_1.exec(`npm install`, (err, stdout, stderr) => __awaiter(this, void 0, void 0, function* () {
+                    if (err)
+                        reject(err);
+                    resolve();
+                }));
+            });
         }
     });
 }
-exports.dependencyFilter = dependencyFilter;
-//# sourceMappingURL=index.js.map
+exports.npmProxy = npmProxy;
+//# sourceMappingURL=npmProxy.fn.js.map

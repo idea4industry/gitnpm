@@ -64,12 +64,9 @@ function gitCheckout(tag, localPath) {
 }
 exports.gitCheckout = gitCheckout;
 function getListOfTags(localPath) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const tags = yield nodegit_1.default.Repository.open(localPath).then((repoResult) => {
-            const repo = repoResult;
-            return nodegit_1.default.Tag.list(repo);
-        });
-        return tags;
+    return nodegit_1.default.Repository.open(localPath).then((repoResult) => {
+        const repo = repoResult;
+        return nodegit_1.default.Tag.list(repo);
     });
 }
 exports.getListOfTags = getListOfTags;

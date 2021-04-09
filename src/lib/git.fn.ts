@@ -16,8 +16,7 @@ async function gitPull(localPath: string) {
     })
 }
 
-async function gitClone(localPath: string, repoPath: string) {
-  const gitToken = await getGitToken(`${process.cwd()}/github_token.json`)
+async function gitClone(localPath: string, repoPath: string, gitToken: string) {
   await Git.Clone.clone(
     `https://${gitToken}:x-oauth-basic@github.com/${repoPath}.git`,
     localPath,
@@ -25,10 +24,11 @@ async function gitClone(localPath: string, repoPath: string) {
 }
 
 export async function gitPullOrClone(localPath: string, repoPath: string) {
+  const gitToken = await getGitToken(`${process.cwd()}/github_token.json`)
   if (fs.existsSync(localPath)) {
     await gitPull(localPath)
   } else {
-    await gitClone(localPath, repoPath)
+    await gitClone(localPath, repoPath, gitToken)
   }
 }
 
