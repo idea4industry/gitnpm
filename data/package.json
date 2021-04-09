@@ -1,0 +1,24 @@
+{
+  "name": "Activator",
+  "version": "0.1.0",
+  "description": "Boilerplate to start a typescript nodejs backend with reasonable defaults",
+  "main": "dist/index.js",
+  "scripts": {
+    "test": "jest",
+    "testcovFull": "export DEBUG=test&&jest --coverageReporters='text'"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@babel/core": "^7.12.10",
+    "@babel/preset-env": "^7.12.11"
+  },
+  "dependencies": {
+    "@types/node-fetch": "^2.5.8",
+    "config-manager": "github:idea4industry/config-manager",
+    "lodash": "^4.17.20",
+    "logger": "github:idea4industry/logger",
+    "moment": "^2.29.1"
+  }
+}

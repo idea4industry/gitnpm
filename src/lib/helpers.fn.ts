@@ -1,8 +1,16 @@
 import fs from 'fs'
+import { Dictionary, pickBy } from 'lodash'
 import semver from 'semver'
+import { JsonObject, JsonValue } from 'type-fest'
 
 type TokenFileData = {
   token: string
+}
+
+type PackageJson = {
+  [index: string]: JsonValue | undefined
+  dependencies: Dictionary<string> | undefined
+  devDependencies: Dictionary<string> | undefined
 }
 
 export async function getGitToken(
@@ -71,4 +79,31 @@ export function findMaxVersion(
     default:
       return tags[tags.length - 1]
   }
+}
+
+export function groupDependencies(
+  packageJson: PackageJson,
+): [
+  githubDependencies: Dictionary<string>,
+  normalDependencies: Dictionary<string>,
+] {
+  const { dependencies } = packageJson
+  if (dependencies) {
+    const githubDependencies = pickBy(dependencies, (value) =>
+      value.includes('git'),
+    )
+    const normalDependencies = pickBy(
+      dependencies,
+      (value) => !value.includes('git'),
+    )
+    return [githubDependencies, normalDependencies]
+  }
+  return [{}, {}]
+}
+
+export function readPackageJson(
+  packagePath: string,
+): [packageJsonObject: PackageJson, packageJsonBuffer: Buffer] {
+  const packageJsonBuffer = fs.readFileSync(packagePath)
+  return [JSON.parse(packageJsonBuffer.toString()), packageJsonBuffer]
 }
