@@ -2,4 +2,4 @@
 
 import { dependencyFilter } from './lib'
 
-dependencyFilter(`${process.cwd()}/package.json`)
+dependencyFilter(`${process.cwd()}/git-package.json`)

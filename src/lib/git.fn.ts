@@ -24,7 +24,7 @@ async function gitClone(localPath: string, repoPath: string, gitToken: string) {
 }
 
 export async function gitPullOrClone(localPath: string, repoPath: string) {
-  const gitToken = await getGitToken(`${process.cwd()}/github_token.json`)
+  const gitToken = await getGitToken(`${process.cwd()}/git-package.json`)
   if (fs.existsSync(localPath)) {
     await gitPull(localPath)
   } else {

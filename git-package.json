@@ -1,0 +1,7 @@
+{
+    "token": "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",
+    "dependencies": {
+        "depen2": "github:machine-user-testing/depen2",
+        "some1": "github:machine-user-testing/some1"
+    }
+}

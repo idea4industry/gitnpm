@@ -9,13 +9,8 @@ export async function dependencyFilter(packagePath: string): Promise<void> {
   const [githubDependenciesObject, npmDependenciesObject] = groupDependencies(
     packageJsonObject,
   )
-  console.log('Installing dependencies...')
-  try {
-    await npmProxy(npmDependenciesObject, packageJsonObject, packagePath)
-    await manageGitDependency(githubDependenciesObject)
-  } catch (error) {
-    console.log(error)
-  } finally {
-    fs.writeFileSync(packagePath, packageJsonBuffer)
-  }
+  console.log('Installing git dependencies...')
+ 
+  await manageGitDependency(githubDependenciesObject)
+  
 }

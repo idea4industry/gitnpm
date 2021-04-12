@@ -27,6 +27,6 @@ export async function manageGitDependency(
       }
     }
     // eslint-disable-next-line no-await-in-loop
-    await dependencyFilter(`${localPath}/package.json`)
+    await dependencyFilter(`${localPath}/git-package.json`)
   }
 }
