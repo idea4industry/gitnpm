@@ -1,32 +1,83 @@
-import { Dictionary } from 'lodash'
-import { findMaxVersion } from './helpers.fn'
+/* eslint-disable no-await-in-loop */
+/* eslint-disable no-restricted-syntax */
+import path from 'path'
+import { exec } from 'child_process'
+import {
+  findMaxVersion,
+  GitPackageJson,
+  readGitPackageJson,
+} from './helpers.fn'
 import { gitPullOrClone, gitCheckout, getListOfTags } from './git.fn'
-import { dependencyFilter } from '.'
 
-export async function manageGitDependency(
-  githubDependenciesObject: Dictionary<string>,
-) {
-  const githubDependenciesArray = Object.values(githubDependenciesObject)
-  if (!githubDependenciesArray.length) return
-  for (const gitDependency of githubDependenciesArray) {
-    const gitDependencyWithoutPrefix = gitDependency.replace('github:', '')
-    const [, repoDetail] = gitDependencyWithoutPrefix.split('/')
-    const [repoName, version] = repoDetail.split('#')
-    const localPath = `${process.cwd()}/node_modules/${repoName}`
-    // eslint-disable-next-line no-await-in-loop
-    await gitPullOrClone(localPath, gitDependencyWithoutPrefix)
-    // eslint-disable-next-line no-await-in-loop
-    const tags = await getListOfTags(localPath)
+function splitGithubPath(
+  githubPath: string,
+): [repoUrl: string, repoName: string, version: string] {
+  const repoUrl = githubPath.replace('github:', '')
+  const [, repoDetail] = repoUrl.split('/')
+  const [repoName, version] = repoDetail.split('#')
+  return [repoUrl, repoName, version]
+}
 
-    // checkout latest version
-    if (tags.length > 0) {
-      const maxVer: string | null = findMaxVersion(tags, version ?? null)
-      if (maxVer !== null) {
-        // eslint-disable-next-line no-await-in-loop
-        await gitCheckout(maxVer, localPath)
+function getGitDependencies(
+  dependencies: GitPackageJson['dependencies'],
+): string[] {
+  if (!dependencies) return []
+  const gitDependencies = Object.values(dependencies)
+  if (!gitDependencies?.length) return []
+  return gitDependencies
+}
+
+async function installNPMDependencies(directory: string): Promise<void> {
+  const currentDirectory = process.cwd()
+  process.chdir(directory)
+  await new Promise<void>((resolve, reject) => {
+    exec('npm install', (err, stdout, stderr) => {
+      process.chdir(currentDirectory)
+      if (err) {
+        reject(err)
       }
+      console.log(stdout)
+      console.error(stderr)
+      resolve()
+    })
+  })
+}
+
+async function manageGitDependency(
+  gitDependency: string,
+  workingDirectory: string,
+  token: string,
+  checkoutBranch: string,
+) {
+  const [repoUrl, repoName, version] = splitGithubPath(gitDependency)
+  const repoPath = path.join(workingDirectory, 'node_modules', repoName)
+  await gitPullOrClone(repoPath, repoUrl, token, checkoutBranch)
+  const tags = await getListOfTags(repoPath)
+
+  // checkout latest version
+  if (tags.length > 0) {
+    const maxVer: string | null = findMaxVersion(tags, version ?? null)
+    if (maxVer !== null) {
+      await gitCheckout(maxVer, repoPath)
     }
-    // eslint-disable-next-line no-await-in-loop
-    await dependencyFilter(`${localPath}/git-package.json`)
+  }
+  await installNPMDependencies(repoPath)
+  await manageGitDependencies(repoPath)
+}
+
+export async function manageGitDependencies(workingDirectory: string) {
+  console.log(`Managing Git Dependencies in ${workingDirectory}`)
+  const gitPackageJson = readGitPackageJson(workingDirectory)
+  if (!gitPackageJson) return
+  const { dependencies, token, checkoutBranch = 'main' } = gitPackageJson
+  const gitDependencies = getGitDependencies(dependencies)
+  for (const gitDependency of gitDependencies) {
+    console.log(`Managing Git Dependency - ${gitDependency}`)
+    await manageGitDependency(
+      gitDependency,
+      workingDirectory,
+      token,
+      checkoutBranch,
+    )
   }
 }

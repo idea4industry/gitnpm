@@ -1,5 +1,5 @@
 #!/usr/bin/env node
 
-import { dependencyFilter } from './lib'
+import { manageGitDependencies } from './lib/manageGitDependency.fn'
 
-dependencyFilter(`${process.cwd()}/git-package.json`)
+manageGitDependencies(process.cwd()).catch((err) => console.log(err))

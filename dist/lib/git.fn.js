@@ -15,56 +15,62 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getListOfTags = exports.gitCheckout = exports.gitPullOrClone = void 0;
 const nodegit_1 = __importDefault(require("nodegit"));
 const fs_1 = __importDefault(require("fs"));
-const helpers_fn_1 = require("./helpers.fn");
-function gitPull(localPath) {
+function gitPull(localPath, checkoutBranch) {
     return __awaiter(this, void 0, void 0, function* () {
+        console.log('In pull');
         yield nodegit_1.default.Repository.open(localPath)
             .then((reporesult) => __awaiter(this, void 0, void 0, function* () {
             const repo = reporesult;
             yield repo.fetch('origin').then(() => __awaiter(this, void 0, void 0, function* () {
-                return repo.mergeBranches('master', 'origin/master');
+                return repo.mergeBranches(checkoutBranch, `origin/${checkoutBranch}`);
             }));
         }))
             .catch((e) => {
             // eslint-disable-next-line no-console
             console.error(e);
-        });
+        })
+            .then((res) => console.log(res));
     });
 }
-function gitClone(localPath, repoPath) {
+function gitClone(localPath, repoPath, gitToken, checkoutBranch) {
     return __awaiter(this, void 0, void 0, function* () {
-        const gitToken = yield helpers_fn_1.getGitToken(`${process.cwd()}/github_token.json`);
+        console.log('In clone');
         yield nodegit_1.default.Clone.clone(`https://${gitToken}:x-oauth-basic@github.com/${repoPath}.git`, localPath);
+        const repo = yield nodegit_1.default.Repository.open(localPath);
+        yield repo.checkoutBranch(checkoutBranch);
     });
 }
-function gitPullOrClone(localPath, repoPath) {
+function gitPullOrClone(repoPath, repoUrl, token, checkoutBranch) {
     return __awaiter(this, void 0, void 0, function* () {
-        if (fs_1.default.existsSync(localPath)) {
-            yield gitPull(localPath);
+        console.log('In gitpullorclone');
+        if (fs_1.default.existsSync(repoPath)) {
+            yield gitPull(repoPath, checkoutBranch);
         }
         else {
-            yield gitClone(localPath, repoPath);
+            yield gitClone(repoPath, repoUrl, token, checkoutBranch);
         }
     });
 }
 exports.gitPullOrClone = gitPullOrClone;
 function gitCheckout(tag, localPath) {
     return __awaiter(this, void 0, void 0, function* () {
-        yield nodegit_1.default.Repository.open(localPath)
-            .then((repoResult) => __awaiter(this, void 0, void 0, function* () {
-            const repo = repoResult;
-            const commit = yield nodegit_1.default.Reference.dwim(repo, `refs/tags/${tag}`);
-            return repo.checkoutRef(commit);
-        }))
-            .catch((e) => {
-            // eslint-disable-next-line no-console
-            console.error(e);
-        });
+        console.log('In Checkout 1');
+        const repo = yield nodegit_1.default.Repository.open(localPath);
+        const refs = yield repo.getReferences();
+        const tagRefs = refs.filter((ref) => ref.isTag());
+        const tagRef = tagRefs.find((t) => t.name() === `refs/tags/${tag}`);
+        const targetRef = yield (tagRef === null || tagRef === void 0 ? void 0 : tagRef.peel(1 /* COMMIT */));
+        const commit = yield repo.getCommit(targetRef);
+        // const tagO = await Git.Reference.dwim(repo, `refs/tags/${tag}`)
+        // // const reference = await repo.getReference(`refs/tags/${tag}`)
+        // const ref = await tagO.peel(Git.Object.TYPE.COMMIT)
+        // const commit = repo.getCommit(ref)
+        yield repo.checkoutRef(targetRef);
     });
 }
 exports.gitCheckout = gitCheckout;
-function getListOfTags(localPath) {
-    return nodegit_1.default.Repository.open(localPath).then((repoResult) => {
+function getListOfTags(repoPath) {
+    return nodegit_1.default.Repository.open(repoPath).then((repoResult) => {
         const repo = repoResult;
         return nodegit_1.default.Tag.list(repo);
     });

@@ -1,3 +1,3 @@
-export declare function gitPullOrClone(localPath: string, repoPath: string): Promise<void>;
+export declare function gitPullOrClone(repoPath: string, repoUrl: string, token: string, checkoutBranch: string): Promise<void>;
 export declare function gitCheckout(tag: string, localPath: string): Promise<void>;
-export declare function getListOfTags(localPath: string): Promise<string[]>;
+export declare function getListOfTags(repoPath: string): Promise<string[]>;

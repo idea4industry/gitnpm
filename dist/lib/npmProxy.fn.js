@@ -8,25 +8,18 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.npmProxy = void 0;
-const fs_1 = __importDefault(require("fs"));
 const child_process_1 = require("child_process");
-function npmProxy(npmDependenciesObject, packageJsonObject, packagePath) {
+function npmProxy() {
     return __awaiter(this, void 0, void 0, function* () {
-        if (Object.values(npmDependenciesObject).length) {
-            fs_1.default.writeFileSync(packagePath, JSON.stringify(Object.assign(Object.assign({}, packageJsonObject), { dependencies: npmDependenciesObject }), null, 2));
-            yield new Promise((resolve, reject) => {
-                child_process_1.exec(`npm install`, (err, stdout, stderr) => __awaiter(this, void 0, void 0, function* () {
-                    if (err)
-                        reject(err);
-                    resolve();
-                }));
-            });
-        }
+        yield new Promise((resolve, reject) => {
+            child_process_1.exec(`npm install`, (err, stdout, stderr) => __awaiter(this, void 0, void 0, function* () {
+                if (err)
+                    reject(err);
+                resolve();
+            }));
+        });
     });
 }
 exports.npmProxy = npmProxy;

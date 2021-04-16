@@ -1,30 +1,12 @@
 import fs from 'fs'
 import { Dictionary, pickBy } from 'lodash'
 import semver from 'semver'
-import { JsonObject, JsonValue } from 'type-fest'
+import path from 'path'
 
-type TokenFileData = {
+export type GitPackageJson = {
+  dependencies: Dictionary<string>
+  checkoutBranch?: string
   token: string
-}
-
-type PackageJson = {
-  [index: string]: JsonValue | undefined
-  dependencies: Dictionary<string> | undefined
-  devDependencies: Dictionary<string> | undefined
-}
-
-export async function getGitToken(
-  gitHubTokenFilePath: string,
-): Promise<string> {
-  const buffer = await fs.promises.readFile(gitHubTokenFilePath).catch(() => {
-    throw new Error('Add github_token.json file')
-  }) // This read the file
-  const text = buffer.toString()
-  const json: TokenFileData = JSON.parse(text)
-  if (json.token.length === 0) {
-    throw new Error('Token is not given in the file')
-  }
-  return json.token
 }
 
 function findMajorVersion(tags: string[], version: string): string | null {
@@ -81,29 +63,15 @@ export function findMaxVersion(
   }
 }
 
-export function groupDependencies(
-  packageJson: PackageJson,
-): [
-  githubDependencies: Dictionary<string>,
-  normalDependencies: Dictionary<string>,
-] {
-  const { dependencies } = packageJson
-  if (dependencies) {
-    const githubDependencies = pickBy(dependencies, (value) =>
-      value.includes('git'),
+export function readGitPackageJson(
+  workingDirectory: string,
+): GitPackageJson | null {
+  try {
+    const packageJsonBuffer = fs.readFileSync(
+      path.join(workingDirectory, 'git-package.json'),
     )
-    const normalDependencies = pickBy(
-      dependencies,
-      (value) => !value.includes('git'),
-    )
-    return [githubDependencies, normalDependencies]
+    return JSON.parse(packageJsonBuffer.toString())
+  } catch (error) {
+    return null
   }
-  return [{}, {}]
-}
-
-export function readPackageJson(
-  packagePath: string,
-): [packageJsonObject: PackageJson, packageJsonBuffer: Buffer] {
-  const packageJsonBuffer = fs.readFileSync(packagePath)
-  return [JSON.parse(packageJsonBuffer.toString()), packageJsonBuffer]
 }
