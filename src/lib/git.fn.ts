@@ -52,14 +52,14 @@ export async function gitCheckout(tag: string, localPath: string) {
   const refs = await repo.getReferences()
   const tagRefs = refs.filter((ref) => ref.isTag())
   const tagRef = tagRefs.find((t) => t.name() === `refs/tags/${tag}`)
-  const targetRef = await tagRef?.peel(Git.Object.TYPE.COMMIT)
-  const commit = await repo.getCommit(targetRef as any)
+  // const targetRef = await tagRef?.peel(Git.Object.TYPE.COMMIT)
+  // const commit = await repo.getCommit(targetRef as any)
 
   // const tagO = await Git.Reference.dwim(repo, `refs/tags/${tag}`)
   // // const reference = await repo.getReference(`refs/tags/${tag}`)
   // const ref = await tagO.peel(Git.Object.TYPE.COMMIT)
   // const commit = repo.getCommit(ref)
-  await repo.checkoutRef(targetRef as any)
+  await repo.checkoutRef(tagRef as any)
 }
 
 export function getListOfTags(repoPath: string): Promise<string[]> {

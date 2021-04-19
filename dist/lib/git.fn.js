@@ -59,13 +59,13 @@ function gitCheckout(tag, localPath) {
         const refs = yield repo.getReferences();
         const tagRefs = refs.filter((ref) => ref.isTag());
         const tagRef = tagRefs.find((t) => t.name() === `refs/tags/${tag}`);
-        const targetRef = yield (tagRef === null || tagRef === void 0 ? void 0 : tagRef.peel(1 /* COMMIT */));
-        const commit = yield repo.getCommit(targetRef);
+        // const targetRef = await tagRef?.peel(Git.Object.TYPE.COMMIT)
+        // const commit = await repo.getCommit(targetRef as any)
         // const tagO = await Git.Reference.dwim(repo, `refs/tags/${tag}`)
         // // const reference = await repo.getReference(`refs/tags/${tag}`)
         // const ref = await tagO.peel(Git.Object.TYPE.COMMIT)
         // const commit = repo.getCommit(ref)
-        yield repo.checkoutRef(targetRef);
+        yield repo.checkoutRef(tagRef);
     });
 }
 exports.gitCheckout = gitCheckout;
